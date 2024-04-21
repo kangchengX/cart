@@ -1,11 +1,12 @@
 import numpy as np
 
-def find_mostfre(array):
+def find_mostfre(array:np.ndarray):
     '''find the most frequent element
 
-    Input:
+    Args:
         array: an array
-    Output:
+
+    Returns:
         e : the most frequent element
     '''
 
@@ -13,6 +14,7 @@ def find_mostfre(array):
     e = unique_elements[np.argmax(counts)]
 
     return e
+
 
 class TreeNode(object):
     """Tree class
@@ -27,6 +29,16 @@ class TreeNode(object):
     """
     
     def __init__(self, left, right, parent, cutoff_id, cutoff_val, prediction):
+        """initialize the class
+
+        Args:
+            left: node of the left child (with the cut feature <= cut value)
+            right: node of the right child (with the cut feature > cut value)
+            parent: parent of the current node
+            cutoff_id: id of the cut feature
+            cutoff_val: cut-off value
+            prediction: prediction of the node, i.e., weights * Y  
+        """
         self.left = left
         self.right = right
         self.parent = parent
@@ -38,12 +50,12 @@ class TreeNode(object):
 def sqsplit(xTr,yTr,weights=None):
     '''find the cut feature id and the cut value
     
-    Input:
+    Args:
         xTr: (n, d) matrix of data points
         yTr: n-dimensional vector of labels
         weights: n-dimensional weight vector for data points
     
-    Output:
+    Returns:
         feature: index of the best cut's feature, None indicates splitting cannot be done
         cut: cut-value of the best cut,  None indicates splitting cannot be done
     '''
@@ -89,20 +101,27 @@ def sqsplit(xTr,yTr,weights=None):
     return feature, cut
 
 
-def cart(xTr,yTr,max_depth=np.inf,weights=None):
+def cart(xTr,yTr,max_depth=np.inf,weights=None,pred_type='most-frequent'):
     '''build a CART tree using a queue
     
     The maximum tree depth is defined by "maxdepth" (maxdepth=2 means one split).
 
-    Input:
+    Args:
         xTr: (n,d) matrix of data
         yTr: n-dimensional vector
         max_depth: maximum tree depth
         weights: n-dimensional weight vector for data points
 
-    Output:
+    Returns: 
         tree: root of decision tree
     '''
+    if pred_type == 'most-frequent':
+        pred_funct = lambda y,w : find_mostfre(y)
+    elif pred_type == 'avg':
+        pred_funct = lambda y,w : np.dot(y,w)
+    else:
+        raise ValueError(f'Unknown pred_type {pred_type}')
+
     num = xTr.shape[0]
     if weights is None:
         w = np.ones(num) / num
@@ -110,7 +129,7 @@ def cart(xTr,yTr,max_depth=np.inf,weights=None):
         w = weights
 
     if num == 1:
-        return TreeNode(None,None,None,None,None, np.dot(yTr, w))
+        return TreeNode(None,None,None,None,None, pred_funct(yTr, w))
     
     feature, cut = sqsplit(xTr,yTr,w)
     root = TreeNode(None,None,None,feature,cut, None)
@@ -121,13 +140,13 @@ def cart(xTr,yTr,max_depth=np.inf,weights=None):
         # skip when the node is a leaf
         # in this case, the leaf is the node when features of the samples are the same
         if node.cutoff_id is None:
-            node.prediction = find_mostfre(yTr)
+            node.prediction = pred_funct(yTr, w)
             continue
         # make the node a leaf and skip when meeting the max depth
         if current_depth == max_depth:
             node.cutoff_id = None
             node.cutoff_val = None
-            node.prediction = find_mostfre(yTr)
+            node.prediction = pred_funct(yTr, w)
             continue
 
         current_depth += 1
